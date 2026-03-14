@@ -35,13 +35,17 @@ Our analysis engine decomposes movement into nine key indicators as defined in o
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### Quick Start (One-Click Launcher)
 
-- Python 3.9+
-- Node.js 18+ & npm
+The easiest way to run the application is using the provided `start_app.py` script, which automatically handles dependency checks, model downloads, and environment setup:
 
-### Backend Setup
+```bash
+python start_app.py
+```
 
+### Manual Setup (Development)
+
+#### Backend Setup
 1.  Install dependencies:
     ```bash
     pip install -r requirements.txt
@@ -51,10 +55,9 @@ Our analysis engine decomposes movement into nine key indicators as defined in o
     cd backend
     python app.py
     ```
-    The server will start on `http://localhost:8000`. It will automatically download the `pose_landmarker_full.task` model on first run.
+    The server will start on `http://localhost:8000`.
 
-### Frontend Setup
-
+#### Frontend Setup
 1.  Navigate to the frontend directory:
     ```bash
     cd frontend
