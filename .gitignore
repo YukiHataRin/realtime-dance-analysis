@@ -20,6 +20,9 @@ env/
 # MediaPipe Models
 *.task
 
+# Video / Data Storage
+backend/recordings/
+
 # OS / IDE
 .DS_Store
 .vscode/
