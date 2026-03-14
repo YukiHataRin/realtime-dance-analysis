@@ -1,0 +1,12 @@
+# 後端 API 與 Web 伺服器
+fastapi
+uvicorn[standard]
+python-multipart
+
+# 影像處理與 AI 模型
+mediapipe
+opencv-python
+numpy
+
+# 科學計算 (用於凸包體積計算等)
+scipy
