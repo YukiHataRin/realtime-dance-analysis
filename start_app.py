@@ -2,19 +2,31 @@ import os
 import subprocess
 import time
 import sys
-import threading
-from urllib.error import URLError
 import urllib.request
+from urllib.error import URLError
 
 def check_requirements():
     print("Checking backend dependencies...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "backend/requirements.txt"])
+    # Using the root requirements.txt for convenience
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
     print("Checking launcher dependencies...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pywebview"])
+    try:
+        import webview
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pywebview"])
+
+def ensure_model():
+    model_path = 'pose_landmarker_full.task'
+    if not os.path.exists(model_path):
+        print(f"Downloading {model_path} (approx. 10MB)...")
+        url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task"
+        urllib.request.urlretrieve(url, model_path)
+        print("Download complete.")
 
 def start_backend():
-    print("Starting FastAPI backend...")
+    print("Starting FastAPI backend on http://127.0.0.1:8000 ...")
     env = os.environ.copy()
+    # Path to app.py is inside backend folder
     backend_process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", "8000"],
         cwd="backend",
@@ -23,49 +35,55 @@ def start_backend():
     return backend_process
 
 def serve_frontend_static():
-    # If built, we can just use a simple python http server to serve the dist folder
-    print("Serving Vite frontend static files...")
+    print("Serving static frontend files on http://127.0.0.1:5173 ...")
     if not os.path.exists("frontend/dist"):
-        print("Error: frontend/dist not found. Please run 'npm run build' inside frontend/")
-        sys.exit(1)
+        print("Building frontend, please wait (this may take a minute)...")
+        subprocess.check_call("npm install && npm run build", cwd="frontend", shell=True)
         
+    # Using http.server as a simple static file server
     frontend_process = subprocess.Popen(
         [sys.executable, "-m", "http.server", "5173"],
         cwd="frontend/dist"
     )
     return frontend_process
 
-def wait_for_server(url, timeout=10):
+def wait_for_server(url, timeout=15):
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
-            urllib.request.urlopen(url)
-            return True
-        except URLError:
+            with urllib.request.urlopen(url) as response:
+                if response.getcode() == 200:
+                    return True
+        except Exception:
             time.sleep(0.5)
     return False
 
 def main():
-    # Must wait for import until after check_requirements installs it
+    print("=== Realtime Dance Aesthetics Launcher ===")
+    
+    # 1. Environment Preparation
     check_requirements()
+    ensure_model()
+    
+    # Import webview after pip install check
     import webview
     
-    # Check if built, if not provide warning
-    if not os.path.exists("frontend/dist"):
-         print("Building frontend, please wait...")
-         subprocess.check_call("npm install && npm run build", cwd="frontend", shell=True)
-    
+    # 2. Start Services
     backend = start_backend()
     frontend = serve_frontend_static()
     
     print("Waiting for servers to initialize...")
-    wait_for_server("http://127.0.0.1:5173")
-    # Wait for backend specifically if needed
-    
+    if not wait_for_server("http://127.0.0.1:5173"):
+        print("Error: Frontend server failed to start.")
+        backend.terminate()
+        frontend.terminate()
+        sys.exit(1)
+        
+    # 3. Open Application Window
     try:
-        print("Opening Webview Window...")
+        print("Opening Application Window...")
         window = webview.create_window(
-            'Realtime Dance Aesthetics', 
+            'Realtime Dance Aesthetics Analysis', 
             'http://127.0.0.1:5173',
             width=1400, 
             height=900,
@@ -74,11 +92,12 @@ def main():
         )
         webview.start()
     except Exception as e:
-        print(f"Error starting webview: {e}")
+        print(f"Error starting UI: {e}")
     finally:
         print("Shutting down servers...")
         backend.terminate()
         frontend.terminate()
+        print("Goodbye!")
 
 if __name__ == '__main__':
     main()
