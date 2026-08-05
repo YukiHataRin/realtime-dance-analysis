@@ -16,6 +16,11 @@ function AppContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordings, setRecordings] = useState([]);
   const [playingFile, setPlayingFile] = useState(null);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraIndex, setSelectedCameraIndex] = useState(null);
+  const [cameraState, setCameraState] = useState('loading');
+  const [cameraError, setCameraError] = useState('');
+  const [streamVersion, setStreamVersion] = useState(0);
   const { isDark, toggleTheme } = useTheme();
 
   const hostname = window.location.hostname;
@@ -23,6 +28,7 @@ function AppContent() {
 
   useEffect(() => {
     fetchRecordings();
+    fetchCameras();
     
     const wsUrl = `ws://${hostname}:8000/ws/metrics`;
     const ws = new WebSocket(wsUrl);
@@ -60,6 +66,61 @@ function AppContent() {
       ws.close();
     };
   }, [viewMode]);
+
+  const fetchCameras = async () => {
+    setCameraState('loading');
+    setCameraError('');
+
+    try {
+      const res = await fetch(`${baseUrl}/cameras`);
+      if (!res.ok) throw new Error('Unable to load camera list');
+
+      const data = await res.json();
+      const availableCameras = data.cameras || [];
+      const selectedCameraIsAvailable = availableCameras.some(
+        (camera) => camera.index === data.selected_camera_index
+      );
+
+      setCameras(availableCameras);
+      setSelectedCameraIndex(
+        selectedCameraIsAvailable ? data.selected_camera_index : null
+      );
+      setCameraState('ready');
+    } catch (e) {
+      setCameraState('error');
+      setCameraError(e.message);
+      console.error('Failed to fetch cameras', e);
+    }
+  };
+
+  const handleCameraChange = async (cameraIndex) => {
+    const nextCameraIndex = Number(cameraIndex);
+    if (nextCameraIndex === selectedCameraIndex) return;
+
+    setCameraState('switching');
+    setCameraError('');
+
+    try {
+      const res = await fetch(`${baseUrl}/camera/select`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ camera_index: nextCameraIndex })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Unable to switch camera');
+      }
+
+      setSelectedCameraIndex(data.camera_index);
+      setStreamVersion(prev => prev + 1);
+      setCameraState('ready');
+    } catch (e) {
+      setCameraState('error');
+      setCameraError(e.message);
+      console.error('Failed to switch camera', e);
+    }
+  };
 
   const fetchRecordings = async () => {
     try {
@@ -193,7 +254,7 @@ function AppContent() {
           <div className="lg:col-span-4 xl:col-span-5 flex flex-col gap-6 h-full">
               <div className="flex-1 relative overflow-hidden rounded-2xl shadow-glass dark:shadow-glass-dark group">
                   <VideoFeed 
-                    url={`${baseUrl}/video_feed`} 
+                    url={`${baseUrl}/video_feed?v=${streamVersion}`}
                     isRecording={isRecording}
                     onRecordStart={handleStartRecord}
                     onRecordStop={handleStopRecord}
@@ -201,6 +262,11 @@ function AppContent() {
                     playbackUrl={`${baseUrl}/recordings/${playingFile}`}
                     onBackToLive={handleBackToLive}
                     onPlaybackTimeUpdate={setPlaybackTime}
+                    cameras={cameras}
+                    selectedCameraIndex={selectedCameraIndex}
+                    cameraState={cameraState}
+                    cameraError={cameraError}
+                    onCameraChange={handleCameraChange}
                   />
               </div>
 
