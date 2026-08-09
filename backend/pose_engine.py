@@ -52,7 +52,8 @@ class PoseEngine:
         l_shldr = get_xyz(11)
         r_shldr = get_xyz(12)
         neck = (l_shldr + r_shldr) / 2 
-        spine = (pelvis + neck) / 2    
+        spine = (pelvis + neck) / 2
+        thorax = (spine + neck) / 2
         head = get_xyz(0)              
 
         h36m_joints = np.zeros((17, 3))
@@ -64,15 +65,15 @@ class PoseEngine:
         h36m_joints[5]  = get_xyz(25)
         h36m_joints[6]  = get_xyz(27)
         h36m_joints[7]  = spine
-        h36m_joints[8]  = neck
-        h36m_joints[9]  = head
-        h36m_joints[10] = l_shldr
-        h36m_joints[11] = get_xyz(13)
-        h36m_joints[12] = get_xyz(15)
-        h36m_joints[13] = r_shldr
-        h36m_joints[14] = get_xyz(14)
-        h36m_joints[15] = get_xyz(16)
-        h36m_joints[16] = neck        
+        h36m_joints[8]  = thorax
+        h36m_joints[9]  = neck
+        h36m_joints[10] = head
+        h36m_joints[11] = l_shldr
+        h36m_joints[12] = get_xyz(13)
+        h36m_joints[13] = get_xyz(15)
+        h36m_joints[14] = r_shldr
+        h36m_joints[15] = get_xyz(14)
+        h36m_joints[16] = get_xyz(16)
 
         return h36m_joints
 
