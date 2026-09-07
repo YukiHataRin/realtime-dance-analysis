@@ -37,11 +37,13 @@ Our analysis engine decomposes movement into nine key indicators as defined in o
 
 ### Quick Start (One-Click Launcher)
 
-The easiest way to run the application is using the provided `start_app.py` script, which automatically handles dependency checks, model downloads, and environment setup:
+The easiest way to run the application is using the provided `start_app.py` script, which automatically handles dependency checks, model downloads, starts the services, and opens the dashboard in your default browser:
 
 ```bash
 python start_app.py
 ```
+
+The live camera is requested by the browser only after you click **啟用攝影機**. Run the app through the localhost URL opened by the launcher; opening the built HTML file directly will not provide the same camera-permission behavior.
 
 ### Manual Setup (Development)
 

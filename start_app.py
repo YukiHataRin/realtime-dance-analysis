@@ -3,17 +3,13 @@ import subprocess
 import time
 import sys
 import urllib.request
+import webbrowser
 from urllib.error import URLError
 
 def check_requirements():
     print("Checking backend dependencies...")
     # Using the root requirements.txt for convenience
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-    print("Checking launcher dependencies...")
-    try:
-        import webview
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pywebview"])
 
 def ensure_model():
     model_path = 'pose_landmarker_full.task'
@@ -65,9 +61,6 @@ def main():
     check_requirements()
     ensure_model()
     
-    # Import webview after pip install check
-    import webview
-    
     # 2. Start Services
     backend = start_backend()
     frontend = serve_frontend_static()
@@ -79,20 +72,16 @@ def main():
         frontend.terminate()
         sys.exit(1)
         
-    # 3. Open Application Window
+    # 3. Open in the system browser so camera permission is handled by the browser.
     try:
-        print("Opening Application Window...")
-        window = webview.create_window(
-            'Realtime Dance Aesthetics Analysis', 
-            'http://127.0.0.1:5173',
-            width=1400, 
-            height=900,
-            background_color='#0F172A',
-            resizable=True
-        )
-        webview.start()
-    except Exception as e:
-        print(f"Error starting UI: {e}")
+        app_url = "http://127.0.0.1:5173"
+        print(f"Opening {app_url} in your default browser...")
+        webbrowser.open(app_url)
+        print("Press Ctrl+C here to stop the application.")
+        while backend.poll() is None and frontend.poll() is None:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Stopping application...")
     finally:
         print("Shutting down servers...")
         backend.terminate()

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Play, Download, Trash2, X, Film } from 'lucide-react';
+import React from 'react';
+import { Play, Download, X, Film } from 'lucide-react';
 
-const RecordingGallery = ({ recordings, onPlay, onDelete }) => {
+const RecordingGallery = ({ recordings, onPlay }) => {
   if (!recordings || recordings.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8">

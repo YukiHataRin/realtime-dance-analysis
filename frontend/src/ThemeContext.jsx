@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-
-const ThemeContext = createContext();
+import React, { useEffect, useState } from 'react';
+import { ThemeContext } from './theme-context';
 
 export const ThemeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(true); // Default to dark mode for better data viz
@@ -24,5 +23,3 @@ export const ThemeProvider = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
-
-export const useTheme = () => useContext(ThemeContext);
