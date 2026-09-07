@@ -1,11 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import VideoFeed from './components/VideoFeed';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import RecordingGallery from './components/RecordingGallery';
 import { Moon, Sun, Activity, Film, Camera } from 'lucide-react';
-import { useTheme } from './ThemeContext';
+import { useTheme } from './theme-context';
 
 const MAX_HISTORY = 100;
+
+const toWebSocketUrl = (httpBaseUrl, path) => {
+  const url = new URL(path, `${httpBaseUrl}/`);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
+};
 
 function AppContent() {
   const [metricsHistory, setMetricsHistory] = useState([]);
@@ -16,22 +22,35 @@ function AppContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordings, setRecordings] = useState([]);
   const [playingFile, setPlayingFile] = useState(null);
-  const [cameras, setCameras] = useState([]);
-  const [selectedCameraIndex, setSelectedCameraIndex] = useState(null);
-  const [cameraState, setCameraState] = useState('loading');
-  const [cameraError, setCameraError] = useState('');
-  const [streamVersion, setStreamVersion] = useState(0);
   const { isDark, toggleTheme } = useTheme();
 
   const hostname = window.location.hostname;
-  const baseUrl = `http://${hostname}:8000`;
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || `http://${hostname}:8000`;
+  const metricsSocketUrl = toWebSocketUrl(baseUrl, '/ws/metrics');
+  const cameraSocketUrl = toWebSocketUrl(baseUrl, '/ws/camera');
+
+  const loadRecordings = useCallback(async () => {
+    const res = await fetch(`${baseUrl}/recordings`);
+    if (!res.ok) throw new Error('Unable to load recordings');
+    const data = await res.json();
+    return data.recordings || [];
+  }, [baseUrl]);
 
   useEffect(() => {
-    fetchRecordings();
-    fetchCameras();
-    
-    const wsUrl = `ws://${hostname}:8000/ws/metrics`;
-    const ws = new WebSocket(wsUrl);
+    let isCurrent = true;
+    loadRecordings()
+      .then((nextRecordings) => {
+        if (isCurrent) setRecordings(nextRecordings);
+      })
+      .catch((error) => console.error('Failed to fetch recordings', error));
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [loadRecordings]);
+
+  useEffect(() => {
+    const ws = new WebSocket(metricsSocketUrl);
 
     ws.onopen = () => {
       console.log('Connected to metrics WebSocket');
@@ -65,82 +84,19 @@ function AppContent() {
     return () => {
       ws.close();
     };
-  }, [viewMode]);
-
-  const fetchCameras = async () => {
-    setCameraState('loading');
-    setCameraError('');
-
-    try {
-      const res = await fetch(`${baseUrl}/cameras`);
-      if (!res.ok) throw new Error('Unable to load camera list');
-
-      const data = await res.json();
-      const availableCameras = data.cameras || [];
-      const selectedCameraIsAvailable = availableCameras.some(
-        (camera) => camera.index === data.selected_camera_index
-      );
-
-      setCameras(availableCameras);
-      setSelectedCameraIndex(
-        selectedCameraIsAvailable ? data.selected_camera_index : null
-      );
-      setCameraState('ready');
-    } catch (e) {
-      setCameraState('error');
-      setCameraError(e.message);
-      console.error('Failed to fetch cameras', e);
-    }
-  };
-
-  const handleCameraChange = async (cameraIndex) => {
-    const nextCameraIndex = Number(cameraIndex);
-    if (nextCameraIndex === selectedCameraIndex) return;
-
-    setCameraState('switching');
-    setCameraError('');
-
-    try {
-      const res = await fetch(`${baseUrl}/camera/select`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ camera_index: nextCameraIndex })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || 'Unable to switch camera');
-      }
-
-      setSelectedCameraIndex(data.camera_index);
-      setStreamVersion(prev => prev + 1);
-      setCameraState('ready');
-    } catch (e) {
-      setCameraState('error');
-      setCameraError(e.message);
-      console.error('Failed to switch camera', e);
-    }
-  };
-
-  const fetchRecordings = async () => {
-    try {
-      const res = await fetch(`${baseUrl}/recordings`);
-      const data = await res.json();
-      setRecordings(data.recordings || []);
-    } catch (e) {
-      console.error("Failed to fetch recordings", e);
-    }
-  };
+  }, [metricsSocketUrl, viewMode]);
 
   const handleStartRecord = async () => {
     try {
       const res = await fetch(`${baseUrl}/record/start`, { method: 'POST' });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unable to start recording');
       if (data.status === 'started') {
         setIsRecording(true);
       }
     } catch (e) {
       console.error("Failed to start recording", e);
+      alert(`無法開始錄影：${e.message}`);
     }
   };
 
@@ -148,16 +104,25 @@ function AppContent() {
     try {
       const res = await fetch(`${baseUrl}/record/stop`, { method: 'POST' });
       const data = await res.json();
-      if (data.status === 'stopped') {
+      if (!res.ok) throw new Error(data.detail || 'Unable to stop recording');
+      if (data.status === 'stopped' || data.status === 'not_recording') {
         setIsRecording(false);
-        fetchRecordings();
+        loadRecordings()
+          .then(setRecordings)
+          .catch((error) => console.error('Failed to refresh recordings', error));
       }
     } catch (e) {
       console.error("Failed to stop recording", e);
+      alert(`無法停止錄影：${e.message}`);
     }
   };
 
   const handlePlayRecording = async (filename) => {
+    if (isRecording) {
+      alert('請先停止目前的錄影，再播放媒體庫內容。');
+      return;
+    }
+
     try {
       const res = await fetch(`${baseUrl}/recordings/${filename}/metrics`);
       const metricsData = await res.json();
@@ -254,7 +219,7 @@ function AppContent() {
           <div className="lg:col-span-4 xl:col-span-5 flex flex-col gap-6 h-full">
               <div className="flex-1 relative overflow-hidden rounded-2xl shadow-glass dark:shadow-glass-dark group">
                   <VideoFeed 
-                    url={`${baseUrl}/video_feed?v=${streamVersion}`}
+                    cameraSocketUrl={cameraSocketUrl}
                     isRecording={isRecording}
                     onRecordStart={handleStartRecord}
                     onRecordStop={handleStopRecord}
@@ -262,11 +227,6 @@ function AppContent() {
                     playbackUrl={`${baseUrl}/recordings/${playingFile}`}
                     onBackToLive={handleBackToLive}
                     onPlaybackTimeUpdate={setPlaybackTime}
-                    cameras={cameras}
-                    selectedCameraIndex={selectedCameraIndex}
-                    cameraState={cameraState}
-                    cameraError={cameraError}
-                    onCameraChange={handleCameraChange}
                   />
               </div>
 

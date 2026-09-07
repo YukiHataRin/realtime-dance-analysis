@@ -1,92 +1,143 @@
 # Real-time Dance Aesthetics Analysis
 
-A sophisticated real-time motion analysis dashboard designed for dance and movement aesthetics. This project leverages MediaPipe's Task API for pose estimation and calculates nine distinct metrics based on biomechanical principles to provide live feedback on a dancer's performance.
+A real-time dance and movement analysis dashboard built with MediaPipe, FastAPI, and React. The browser captures camera frames, the Python backend estimates pose landmarks and calculates nine H36M-compatible movement descriptors, and the dashboard displays the annotated video and live metrics.
 
 ![Architecture](https://img.shields.io/badge/Architecture-FastAPI%20%2B%20React%20%2B%20MediaPipe-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
 
 ## 🌟 Key Features
 
-- **Real-time Pose Estimation**: High-fidelity 33-point body tracking using MediaPipe's Pose Landmarker.
-- **Biomechanical Metrics Engine**: Calculates 9 distinct aesthetic indicators based on H36M compatible skeleton data.
-- **WebSocket Synchronization**: Low-latency data transmission between the Python backend and React frontend.
-- **Interactive Dashboard**: 3x3 grid visualization with real-time charts and value tracking.
-- **Dynamic Skeleton Overlay**: Real-time visualization of the tracking skeleton (focusing on torso and limbs).
+- **Browser camera permission**: Camera access starts only after the user clicks **啟用攝影機**.
+- **Camera selection**: Switch between available cameras after permission is granted.
+- **Real-time pose estimation**: Track 33 MediaPipe landmarks and convert them to a 17-joint H36M-compatible skeleton.
+- **Nine movement metrics**: Display live intensity, synchronization, expansion, curvature, stability, effort, and smoothness descriptors.
+- **Skeleton overlay**: Return an annotated video frame from the local analysis service.
+- **Recording and playback**: Save analyzed video together with timestamped metrics, then replay previous sessions.
+- **Local processing**: Camera frames are sent only to the FastAPI service running on the same machine.
 
-## 📊 The 9 Aesthetic Metrics
+## 📊 The 9 Movement Metrics
 
-Our analysis engine decomposes movement into nine key indicators as defined in our system's pseudocode:
+These values are movement descriptors implemented in `backend/dance_metrics.py`. Labels such as “Torque” are analysis proxies rather than direct physical measurements from force sensors.
 
-1.  **Intensity (Energy)**: Sum of limb angular velocities ($rad^2/s$). Reflects the overall physical output.
-2.  **Sync - Balance**: The magnitude ratio between left and right limb velocities ([0, 1]). Measures spatial symmetry.
-3.  **Sync - Correlation**: Rolling Pearson correlation between left and right side movements ([-1, 1]). Measures temporal synchronicity.
-4.  **Volume (Expansion)**: The 3D convex hull volume occupied by the 17 key joints. Reflects spatial extension.
-5.  **Roundness (Curvature)**: Geometric curvature ($\kappa$) of the extremities' (wrists/ankles) trajectories.
-6.  **Stability - Height**: Vertical level of the body's Center of Mass (CoM).
-7.  **Stability - Sway**: Horizontal deviation of the CoM from the Base of Support (mid-point of ankles).
-8.  **Effort (Torque)**: Sum of limb angular accelerations ($rad/s^2$). Measures the force required for transitions.
-9.  **Smoothness (Jerk)**: Time derivative of acceleration. Higher values indicate more abrupt, less fluid movements.
+1. **Intensity (Energy)**: Weighted sum of squared limb angular speeds ($rad^2/s^2$).
+2. **Sync – Balance**: Similarity ratio between left- and right-side angular-speed magnitudes ([0, 1]).
+3. **Sync – Correlation**: Rolling Pearson correlation between left- and right-side motion histories ([-1, 1]).
+4. **Volume (Expansion)**: Scaled 3D convex-hull volume of the 17 joints.
+5. **Roundness (Curvature)**: Mean trajectory curvature of the wrists and ankles.
+6. **Stability – Height**: Estimated vertical Center of Mass (CoM) position in meters.
+7. **Stability – Sway**: CoM displacement from the ankle midpoint in the horizontal plane, in meters.
+8. **Effort (Torque proxy)**: Weighted sum of absolute limb angular accelerations ($rad/s^2$).
+9. **Smoothness (Jerk cost)**: Weighted sum of squared angular jerk; higher values indicate more abrupt movement.
 
-## 🛠️ Tech Stack
+## 🛠️ Architecture
 
-- **Backend**: Python 3.9+, FastAPI, MediaPipe Tasks API, OpenCV, SciPy, NumPy.
-- **Frontend**: React (Vite), Tailwind CSS, Recharts (for live data visualization), Lucide React.
-- **Communication**: WebSockets (Metrics) and MJPEG (Video Stream).
+- **Backend**: Python, FastAPI, MediaPipe Tasks API, OpenCV, SciPy, and NumPy.
+- **Frontend**: React, Vite, Tailwind CSS, Recharts, and Lucide React.
+- **Camera channel**: The browser sends JPEG frames through `/ws/camera`; the backend returns JPEG frames with the skeleton overlay.
+- **Metrics channel**: The backend broadcasts live metric JSON through `/ws/metrics`.
+- **HTTP API**: Recording controls and saved video/metric files are exposed through `/record/*` and `/recordings/*`.
 
-## 🚀 Getting Started
+## ✅ Requirements
 
-### Quick Start (One-Click Launcher)
+- Python 3.9 or newer
+- Node.js `^20.19.0` or `>=22.12.0` (required by Vite 8)
+- npm
+- A modern browser with `getUserMedia` support
+- A camera for live analysis; saved recordings can be played without one
 
-The easiest way to run the application is using the provided `start_app.py` script, which automatically handles dependency checks, model downloads, and environment setup:
+## 🚀 Quick Start
+
+Run the launcher from the repository root:
 
 ```bash
 python start_app.py
 ```
 
-### Manual Setup (Development)
+The launcher will:
 
-#### Backend Setup
-1.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-2.  Run the FastAPI server:
-    ```bash
-    cd backend
-    python app.py
-    ```
-    The server will start on `http://localhost:8000`.
+1. Install the Python requirements.
+2. Download `pose_landmarker_full.task` when it is missing.
+3. Build the frontend when `frontend/dist` is missing.
+4. Start FastAPI on `http://127.0.0.1:8000` and the frontend on `http://127.0.0.1:5173`.
+5. Open the dashboard in the system's default browser.
 
-#### Frontend Setup
-1.  Navigate to the frontend directory:
-    ```bash
-    cd frontend
-    ```
-2.  Install packages:
-    ```bash
-    npm install
-    ```
-3.  Build or Run:
-    - **Development**: `npm run dev`
-    - **Production**: `npm run build`
+In the dashboard, click **啟用攝影機** and allow access when the browser asks. Once permission is granted, use the camera selector above the video to change devices.
+
+Keep the launcher terminal open while using the application. Press `Ctrl+C` in that terminal to stop both services.
+
+> If frontend source files have changed while `frontend/dist` already exists, rebuild with `npm run build` inside `frontend/` before starting the launcher.
+
+## 🔧 Manual Development Setup
+
+### Backend
+
+From the repository root:
+
+```bash
+python -m pip install -r requirements.txt
+cd backend
+python app.py
+```
+
+The backend runs at `http://127.0.0.1:8000`.
+
+### Frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL printed by Vite, normally `http://127.0.0.1:5173` or `http://localhost:5173`. Keep the backend running at port `8000`.
+
+Useful frontend commands:
+
+```bash
+npm run lint
+npm run build
+npm run preview
+```
+
+`npm run build` creates production assets but does not start a server. Use `npm run preview` to preview that build, or use `python start_app.py` to serve it with the complete application.
+
+## 📷 Camera and Recording Notes
+
+- Camera permission is requested by the browser, not by Python directly.
+- Open the application through the localhost URL; opening `frontend/dist/index.html` directly may block camera access and backend connections.
+- Device names may remain hidden until camera permission has been granted.
+- Only one live camera stream can use the backend at a time.
+- Starting a recording requires an active camera and analysis connection.
+- Videos and matching metric JSON files are stored in `backend/recordings/`.
 
 ## 📂 Project Structure
 
 ```text
 ├── backend/
-│   ├── app.py              # FastAPI & WebSocket server
+│   ├── app.py              # FastAPI HTTP and WebSocket server
 │   ├── dance_metrics.py    # Metric calculation engine
-│   ├── pose_engine.py      # MediaPipe integration & drawing
-│   └── constants.py        # H36M joint mappings & weights
+│   ├── pose_engine.py      # MediaPipe inference and overlay drawing
+│   ├── constants.py        # H36M joint mappings and weights
+│   └── recordings/         # Generated videos and metric JSON files
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # VideoFeed & MetricsDashboard
-│   │   └── AppContent.jsx  # Main application logic
-│   └── dist/               # Compiled static assets
-├── pseudo_code.md          # Theoretical basis for metrics
-└── requirements.txt        # Backend dependencies
+│   │   ├── components/     # Camera, recording, and metric UI
+│   │   └── AppContent.jsx  # Main application state and connections
+│   └── dist/               # Generated production assets
+├── design-system/          # UI design guidance
+├── pseudo_code.md          # Theoretical basis for the metrics
+├── start_app.py            # One-command local launcher
+└── requirements.txt        # Python dependencies
 ```
 
-## 📜 License
+## Troubleshooting
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- **No permission dialog**: Check the browser's camera permission for `127.0.0.1`, then click **重新嘗試**.
+- **Camera is busy**: Close other applications or tabs using the same camera.
+- **No metrics**: Make sure the backend is running on port `8000` and the dashboard shows that pose analysis is connected.
+- **Frontend changes are missing**: Rebuild `frontend/dist`, then restart the launcher.
+
+## License
+
+No license file has been added to this repository yet.
