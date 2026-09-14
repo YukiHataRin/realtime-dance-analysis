@@ -4,6 +4,7 @@ type: software
 license: MIT
 version: 1.0.0
 date-released: 2026-09-14
+doi: 10.5281/zenodo.22747639
 title: "Real-time Dance Aesthetics Analysis"
 authors:
   - family-names: "Yeh"

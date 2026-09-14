@@ -3,6 +3,7 @@
 A real-time dance and movement analysis dashboard built with MediaPipe, FastAPI, and React. The browser captures camera frames, the Python backend estimates pose landmarks and calculates nine H36M-compatible movement descriptors, and the dashboard displays the annotated video and live metrics.
 
 ![Architecture](https://img.shields.io/badge/Architecture-FastAPI%20%2B%20React%20%2B%20MediaPipe-blue)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22747639.svg)](https://doi.org/10.5281/zenodo.22747639)
 
 ## 🌟 Key Features
 
@@ -145,3 +146,5 @@ This project is licensed under the [MIT License](LICENSE).
 ## Citation
 
 If you use this software, please cite it using the metadata in [CITATION.cff](CITATION.cff).
+
+Yeh, Hsing-Hao; Lin, Feng-Cheng; Jiang, Cheng-Tai (2026). *Real-time Dance Aesthetics Analysis* (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.22747639
