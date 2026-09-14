@@ -140,4 +140,8 @@ npm run preview
 
 ## License
 
-No license file has been added to this repository yet.
+This project is licensed under the [MIT License](LICENSE).
+
+## Citation
+
+If you use this software, please cite it using the metadata in [CITATION.cff](CITATION.cff).

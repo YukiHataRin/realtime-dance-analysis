@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata in this file."
+type: software
+license: MIT
+version: 1.0.0
+date-released: 2026-09-14
+title: "Real-time Dance Aesthetics Analysis"
+authors:
+  - family-names: "Yeh"
+    given-names: "Hsing-Hao"
+  - family-names: "Lin"
+    given-names: "Feng-Cheng"
+  - family-names: "Jiang"
+    given-names: "Cheng-Tai"
+repository-code: "https://github.com/YukiHataRin/realtime-dance-analysis"
+abstract: >-
+  A real-time dance and movement analysis dashboard built with MediaPipe,
+  FastAPI, and React. It estimates pose landmarks from browser camera frames,
+  calculates nine H36M-compatible movement descriptors, and displays
+  annotated video and live metrics with recording and playback support.
+keywords:
+  - dance
+  - motion analysis
+  - pose estimation
+  - MediaPipe
